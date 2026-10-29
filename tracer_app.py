@@ -419,7 +419,7 @@ input,select{font:inherit;font-size:13px;padding:4px 7px;border:1px solid var(--
 <div class="sub">Hover a field for details &middot; drag to pan &middot; scroll to zoom</div>
 <div id="detail"><i>Hover or click a plot</i></div>
 <div>Colour by <select id="colour"><option value="none">nothing</option><option value="cult" selected>cultivation</option><option value="owner">owner</option></select></div>
-<div style="margin-top:4px"><label style="font-size:12.5px"><input type="checkbox" id="lbl" checked> labels</label> <select id="lbltype" style="margin-left:4px"><option value="name" selected>names</option><option value="num">plot numbers</option></select></div>
+<div style="margin-top:4px"><label style="font-size:12.5px"><input type="checkbox" id="polys" checked> polygons</label> <label style="font-size:12.5px;margin-left:8px"><input type="checkbox" id="lbl" checked> labels</label> <select id="lbltype" style="margin-left:4px"><option value="name" selected>names</option><option value="num">plot numbers</option></select></div>
 <div id="legend"></div>
 <input id="search" placeholder="Search plot no, field name, owner, occupier..."><div id="list"></div></div>
 <div id="tip"></div></div>
@@ -450,10 +450,10 @@ function setColour(){const m=$('colour').value;const lg=$('legend');lg.innerHTML
 function req(){if(!queued){queued=true;requestAnimationFrame(draw)}}
 function draw(){queued=false;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);
  ctx.setTransform(dpr*scale,0,0,dpr*scale,dpr*ox,dpr*oy);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(curMap(),0,0,WW,WH);
- const showL=$('lbl').checked;
+ const showL=$('lbl').checked,showP=$('polys').checked;
  DATA.forEach(f=>{const col=colours[catOf(f)]||'#1e6edc';const on=f===hover,s=f===sel;
-  ctx.globalAlpha=on||s?0.55:0.28;ctx.fillStyle=s?'#c02828':on?'#28a03c':col;ctx.fill(f._p);ctx.globalAlpha=1;
-  ctx.strokeStyle='rgba(60,50,30,.85)';ctx.lineWidth=(on||s?2.2:1)/scale;ctx.stroke(f._p);
+  if(showP||on||s){ctx.globalAlpha=on||s?0.55:0.28;ctx.fillStyle=s?'#c02828':on?'#28a03c':col;ctx.fill(f._p);ctx.globalAlpha=1;
+   ctx.strokeStyle='rgba(60,50,30,.85)';ctx.lineWidth=(on||s?2.2:1)/scale;ctx.stroke(f._p);}
   const b=f._b;if(showL&&(b[2]-b[0])*scale>20){ctx.font=`bold ${12/scale}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
    ctx.strokeStyle='#fffc';ctx.lineWidth=3/scale;const txt=($('lbltype').value=='num'?f.plot:(f.name||f.plot));if(ctx.measureText(txt).width>(b[2]-b[0])*.95)return;ctx.strokeText(txt,f.label[0],f.label[1]);ctx.fillStyle='#222';ctx.fillText(txt,f.label[0],f.label[1])}})}
 function toImg(e){const r=cv.getBoundingClientRect();return[(e.clientX-r.left-ox)/scale,(e.clientY-r.top-oy)/scale]}
@@ -495,7 +495,7 @@ function renderList(){const q=$('search').value.toLowerCase().trim();const L=$('
   const d=document.createElement('div');d.textContent=`${f.plot}. ${f.name||'(unnamed)'} — ${f.owners[0]||''}`;
   d.onclick=()=>{sel=f;detail(f);const b=f._b,r=cv.getBoundingClientRect();scale=Math.min(6,Math.max(1.2,Math.min(r.width/((b[2]-b[0])*4),r.height/((b[3]-b[1])*4))));
    ox=r.width/2-(b[0]+b[2])/2*scale;oy=r.height/2-(b[1]+b[3])/2*scale;req()};L.appendChild(d)})}
-$('search').addEventListener('input',renderList);$('colour').onchange=()=>{setColour();req()};$('lbl').onchange=req;$('lbltype').onchange=req;
+$('search').addEventListener('input',renderList);$('colour').onchange=()=>{setColour();req()};$('lbl').onchange=req;$('lbltype').onchange=req;$('polys').onchange=req;
 function resize(){const r=cv.getBoundingClientRect();dpr=window.devicePixelRatio||1;cv.width=r.width*dpr;cv.height=r.height*dpr;req()}
 function fit(){const r=cv.getBoundingClientRect();scale=Math.min(r.width/WW,r.height/WH);ox=(r.width-WW*scale)/2;oy=0;req()}
 window.addEventListener('resize',()=>{resize()});
