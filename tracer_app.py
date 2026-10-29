@@ -404,7 +404,7 @@ INTERACTIVE_HTML = r"""<!doctype html><html><head><meta charset="utf-8">
 :root{--panel:#fffffff0;--ink:#2a2418;--mute:#6b6250;--line:#b7ad93}
 body{margin:0;font-family:Georgia,'Times New Roman',serif;background:#e9e2d0;color:var(--ink)}
 #wrap{position:fixed;inset:0;overflow:hidden}
-canvas{position:absolute;top:0;left:0;width:100%;height:100%;cursor:grab}
+canvas{position:absolute;top:0;left:0;width:100%;height:100%;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 #panel{position:absolute;top:10px;left:10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 14px;width:340px;max-width:calc(100vw - 40px);
  box-shadow:0 2px 12px #0003;font-size:14px;max-height:calc(100vh - 30px);overflow-y:auto}
 #panel h1{font-size:16px;margin:0 0 2px}.sub{color:var(--mute);font-size:12.5px}
@@ -469,6 +469,27 @@ cv.addEventListener('mousemove',e=>{
   tip.textContent=`${h.plot}: ${h.name||'(unnamed)'} — ${h.owners[0]||'owner?'}${h.owners.length>1?` +${h.owners.length-1}`:''}`}else tip.style.display='none'});
 cv.addEventListener('wheel',e=>{e.preventDefault();const[x,y]=toImg(e);const f=e.deltaY<0?1.2:1/1.2;scale=Math.min(12,Math.max(0.1,scale*f));
  const r=cv.getBoundingClientRect();ox=e.clientX-r.left-x*scale;oy=e.clientY-r.top-y*scale;req()},{passive:false});
+// ---- touch: one finger pans, two fingers pinch-zoom about the midpoint (touch-action:none stops browser page-zoom)
+let pinch=null,touchDrag=null;const tpt=(r,t)=>({clientX:t.clientX,clientY:t.clientY});
+cv.addEventListener('touchstart',e=>{e.preventDefault();
+ if(e.touches.length===2){touchDrag=null;const[a,b]=[tpt(cv,e.touches[0]),tpt(cv,e.touches[1])];
+  const r=cv.getBoundingClientRect(),mx=(a.clientX+b.clientX)/2,my=(a.clientY+b.clientY)/2;
+  pinch={d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),s:scale,ix:(mx-r.left-ox)/scale,iy:(my-r.top-oy)/scale};}
+ else if(e.touches.length===1){const r=cv.getBoundingClientRect(),p=tpt(cv,e.touches[0]);
+  touchDrag=[p.clientX,p.clientY,ox,oy,e.touches[0].identifier];cv.style.cursor='grabbing';}},{passive:false});
+cv.addEventListener('touchmove',e=>{e.preventDefault();
+ if(e.touches.length===2&&pinch){const[a,b]=[tpt(cv,e.touches[0]),tpt(cv,e.touches[1])];
+  const r=cv.getBoundingClientRect(),mx=(a.clientX+b.clientX)/2,my=(a.clientY+b.clientY)/2;
+  scale=Math.min(12,Math.max(0.1,pinch.s*Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)/pinch.d));
+  ox=mx-r.left-pinch.ix*scale;oy=my-r.top-pinch.iy*scale;tip.style.display='none';req();}
+ else if(e.touches.length===1&&touchDrag&&e.touches[0].identifier===touchDrag[4]){const p=tpt(cv,e.touches[0]);
+  if(Math.hypot(p.clientX-touchDrag[0],p.clientY-touchDrag[1])>6)touchDrag.push(1);
+  if(touchDrag[5]){ox=touchDrag[2]+p.clientX-touchDrag[0];oy=touchDrag[3]+p.clientY-touchDrag[1];tip.style.display='none';req();}}},{passive:false});
+cv.addEventListener('touchend',e=>{e.preventDefault();
+ if(pinch&&e.touches.length<2)pinch=null;
+ if(touchDrag&&e.touches.length===0){const tap=!touchDrag[5];const t=[...e.changedTouches].find(c=>c.identifier===touchDrag[4]);touchDrag=null;cv.style.cursor='grab';
+  if(tap&&t){const[x,y]=toImg(t);sel=pick(x,y);detail(sel);req()}}},{passive:false});
+cv.addEventListener('touchcancel',()=>{pinch=null;touchDrag=null});
 function renderList(){const q=$('search').value.toLowerCase().trim();const L=$('list');L.innerHTML='';
  DATA.filter(f=>!q||[f.plot,f.name,f.cult,f.owners.join(' '),f.occs.join(' ')].join(' ').toLowerCase().includes(q)).slice(0,300).forEach(f=>{
   const d=document.createElement('div');d.textContent=`${f.plot}. ${f.name||'(unnamed)'} — ${f.owners[0]||''}`;
